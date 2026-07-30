@@ -1,4 +1,4 @@
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -12,6 +12,7 @@ from ai import ai_response
 import os
 import json
 import asyncio
+from datetime import datetime
 
 
 TOKEN = os.getenv("BOT_TOKEN")
@@ -20,93 +21,74 @@ USERS_FILE = "users.json"
 
 
 def load_users():
-    if not os.path.exists(USERS_FILE):
+    try:
+        with open(USERS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
         return {}
 
-    with open(USERS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+
+def save_users(users):
+    with open(USERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(users, f, ensure_ascii=False, indent=4)
 
 
 def save_user(user):
     users = load_users()
+    uid = str(user.id)
 
-    users[str(user.id)] = {
-        "id": user.id,
-        "name": user.first_name,
-        "username": user.username
-    }
-
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(
-            users,
-            f,
-            ensure_ascii=False,
-            indent=4
-        )
-
-
-def menu():
-    buttons = [
-        ["🧠 هوش مصنوعی"],
-        ["👤 پروفایل", "🌍 ترجمه"],
-        ["☁️ آب‌وهوا"]
-    ]
-
-    return ReplyKeyboardMarkup(
-        buttons,
-        resize_keyboard=True
-    )
+    if uid not in users:
+        users[uid] = {
+            "name": user.first_name,
+            "username": user.username or "ندارد",
+            "joined": str(datetime.now())
+        }
+        save_users(users)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-
-    save_user(user)
+    save_user(update.effective_user)
 
     await update.message.reply_text(
-        f"سلام {user.first_name} 👋\n"
-        "به NovaAI خوش آمدید 🤖\n\n"
-        "یک گزینه را انتخاب کن:",
-        reply_markup=menu()
+        "سلام 👋\n"
+        "به NovaSmartBot خوش آمدید 🤖\n\n"
+        "برای دیدن پروفایل خودت بزن:\n"
+        "/profile"
     )
+
+
+async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    users = load_users()
+    uid = str(update.effective_user.id)
+
+    if uid in users:
+        user = users[uid]
+
+        await update.message.reply_text(
+            f"👤 پروفایل شما\n\n"
+            f"نام: {user['name']}\n"
+            f"یوزرنیم: @{user['username']}\n"
+            f"تاریخ ورود: {user['joined']}"
+        )
+    else:
+        await update.message.reply_text(
+            "اول /start رو بزن 👋"
+        )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "/start - شروع\n/help - راهنما"
+        "/start - شروع\n"
+        "/profile - پروفایل\n"
+        "/help - راهنما"
     )
 
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    if update.message and update.message.text:
 
-    if text == "👤 پروفایل":
-        user = update.effective_user
+        text = update.message.text
 
-        await update.message.reply_text(
-            f"👤 پروفایل شما\n\n"
-            f"نام: {user.first_name}\n"
-            f"شناسه: {user.id}\n"
-            f"وضعیت: رایگان"
-        )
-
-    elif text == "🧠 هوش مصنوعی":
-        await update.message.reply_text(
-            "🧠 NovaAI فعال است.\n"
-            "سوالت را بپرس 🤖"
-        )
-
-    elif text == "🌍 ترجمه":
-        await update.message.reply_text(
-            "🌍 بخش ترجمه به زودی فعال می‌شود."
-        )
-
-    elif text == "☁️ آب‌وهوا":
-        await update.message.reply_text(
-            "☁️ بخش آب‌وهوا به زودی فعال می‌شود."
-        )
-
-    else:
         answer = ai_response(text)
 
         await update.message.reply_text(answer)
@@ -121,13 +103,9 @@ async def run_bot():
 
     app = Application.builder().token(TOKEN).build()
 
-    app.add_handler(
-        CommandHandler("start", start)
-    )
-
-    app.add_handler(
-        CommandHandler("help", help_command)
-    )
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("profile", profile))
+    app.add_handler(CommandHandler("help", help_command))
 
     app.add_handler(
         MessageHandler(
@@ -136,7 +114,7 @@ async def run_bot():
         )
     )
 
-    print("NovaAI is running...")
+    print("NovaSmartBot is running...")
 
     await app.initialize()
     await app.start()
