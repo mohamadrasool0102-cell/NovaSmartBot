@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -7,26 +7,109 @@ from telegram.ext import (
     filters,
 )
 import os
+import json
 import asyncio
 
 TOKEN = os.getenv("BOT_TOKEN")
 
+USERS_FILE = "users.json"
+
+
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        return {}
+
+    with open(USERS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_user(user):
+    users = load_users()
+
+    users[str(user.id)] = {
+        "id": user.id,
+        "name": user.first_name,
+        "username": user.username
+    }
+
+    with open(USERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(
+            users,
+            f,
+            ensure_ascii=False,
+            indent=4
+        )
+
+
+def menu():
+    buttons = [
+        ["🧠 هوش مصنوعی"],
+        ["👤 پروفایل", "🌍 ترجمه"],
+        ["☁️ آب‌وهوا"]
+    ]
+
+    return ReplyKeyboardMarkup(
+        buttons,
+        resize_keyboard=True
+    )
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+
+    save_user(user)
+
     await update.message.reply_text(
-        "سلام! 👋\nبه NovaSmartBot خوش اومدی."
+        f"سلام {user.first_name} 👋\n"
+        "به NovaAI خوش آمدید 🤖\n\n"
+        "یک گزینه را انتخاب کنید:",
+        reply_markup=menu()
     )
+
+
+async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+
+    await update.message.reply_text(
+        f"👤 پروفایل شما\n\n"
+        f"نام: {user.first_name}\n"
+        f"شناسه: {user.id}\n"
+        f"وضعیت: رایگان"
+    )
+
+
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    if text == "👤 پروفایل":
+        await profile(update, context)
+
+    elif text == "🧠 هوش مصنوعی":
+        await update.message.reply_text(
+            "🧠 بخش هوش مصنوعی NovaAI به زودی فعال می‌شود."
+        )
+
+    elif text == "🌍 ترجمه":
+        await update.message.reply_text(
+            "🌍 بخش ترجمه در حال آماده‌سازی است."
+        )
+
+    elif text == "☁️ آب‌وهوا":
+        await update.message.reply_text(
+            "☁️ بخش آب‌وهوا در حال آماده‌سازی است."
+        )
+
+    else:
+        await update.message.reply_text(
+            "پیامت دریافت شد ✅\n"
+            "NovaAI در حال پردازش است 🤖"
+        )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "/start - شروع\n/help - راهنما"
     )
-
-
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message and update.message.text:
-        await update.message.reply_text(update.message.text)
 
 
 async def run_bot():
@@ -37,9 +120,15 @@ async def run_bot():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            message_handler
+        )
+    )
 
-    print("NovaSmartBot is running...")
+    print("NovaAI is running...")
+
     await app.initialize()
     await app.start()
     await app.updater.start_polling()
