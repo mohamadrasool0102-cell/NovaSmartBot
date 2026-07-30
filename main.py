@@ -6,9 +6,13 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+
+from ai import ai_response
+
 import os
 import json
 import asyncio
+
 
 TOKEN = os.getenv("BOT_TOKEN")
 
@@ -62,48 +66,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"سلام {user.first_name} 👋\n"
         "به NovaAI خوش آمدید 🤖\n\n"
-        "یک گزینه را انتخاب کنید:",
+        "یک گزینه را انتخاب کن:",
         reply_markup=menu()
     )
-
-
-async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-
-    await update.message.reply_text(
-        f"👤 پروفایل شما\n\n"
-        f"نام: {user.first_name}\n"
-        f"شناسه: {user.id}\n"
-        f"وضعیت: رایگان"
-    )
-
-
-async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-
-    if text == "👤 پروفایل":
-        await profile(update, context)
-
-    elif text == "🧠 هوش مصنوعی":
-        await update.message.reply_text(
-            "🧠 بخش هوش مصنوعی NovaAI به زودی فعال می‌شود."
-        )
-
-    elif text == "🌍 ترجمه":
-        await update.message.reply_text(
-            "🌍 بخش ترجمه در حال آماده‌سازی است."
-        )
-
-    elif text == "☁️ آب‌وهوا":
-        await update.message.reply_text(
-            "☁️ بخش آب‌وهوا در حال آماده‌سازی است."
-        )
-
-    else:
-        await update.message.reply_text(
-            "پیامت دریافت شد ✅\n"
-            "NovaAI در حال پردازش است 🤖"
-        )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -112,14 +77,58 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    if text == "👤 پروفایل":
+        user = update.effective_user
+
+        await update.message.reply_text(
+            f"👤 پروفایل شما\n\n"
+            f"نام: {user.first_name}\n"
+            f"شناسه: {user.id}\n"
+            f"وضعیت: رایگان"
+        )
+
+    elif text == "🧠 هوش مصنوعی":
+        await update.message.reply_text(
+            "🧠 NovaAI فعال است.\n"
+            "سوالت را بپرس 🤖"
+        )
+
+    elif text == "🌍 ترجمه":
+        await update.message.reply_text(
+            "🌍 بخش ترجمه به زودی فعال می‌شود."
+        )
+
+    elif text == "☁️ آب‌وهوا":
+        await update.message.reply_text(
+            "☁️ بخش آب‌وهوا به زودی فعال می‌شود."
+        )
+
+    else:
+        answer = ai_response(text)
+
+        await update.message.reply_text(answer)
+
+
 async def run_bot():
+
     if not TOKEN:
-        raise RuntimeError("BOT_TOKEN environment variable is not set.")
+        raise RuntimeError(
+            "BOT_TOKEN environment variable is not set."
+        )
 
     app = Application.builder().token(TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(
+        CommandHandler("start", start)
+    )
+
+    app.add_handler(
+        CommandHandler("help", help_command)
+    )
+
     app.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
@@ -136,6 +145,7 @@ async def run_bot():
     try:
         while True:
             await asyncio.sleep(3600)
+
     finally:
         await app.updater.stop()
         await app.stop()
