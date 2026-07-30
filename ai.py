@@ -8,25 +8,41 @@ def load_answers():
     if not os.path.exists(ANSWERS_FILE):
         return {}
 
-    with open(ANSWERS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(ANSWERS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+
+    except Exception:
+        return {}
 
 
 def ai_response(message):
-    text = message.lower()
+    text = message.lower().strip()
 
     answers = load_answers()
 
+    # جواب‌های ذخیره شده
     if text in answers:
         return answers[text]
 
-    if "سلام" in text or "hello" in text:
-        return "سلام 👋 من NovaAI هستم، چطور کمکت کنم؟"
+    # جواب‌های پایه
+    if any(x in text for x in ["سلام", "درود", "hello", "hi"]):
+        return "سلام 👋 من NovaAI هستم 🤖\nچطور می‌تونم کمکت کنم؟"
 
-    if "اسم" in text or "name" in text:
+    if "اسمت" in text or "اسم تو" in text or "name" in text:
         return "من NovaAI هستم 🤖"
 
-    if "خوبی" in text or "how are you" in text:
-        return "خوبم، آماده کمک هستم 🚀"
+    if "خوبی" in text or "حالت" in text:
+        return "خوبم 😄 آماده کمک هستم."
 
-    return "هنوز جواب این سوال رو یاد نگرفتم 🤔"
+    if "چه کار" in text or "کمک" in text:
+        return "می‌تونم به سوالاتت جواب بدم و کمکت کنم 🚀"
+
+    if "خداحافظ" in text or "bye" in text:
+        return "خداحافظ 👋 دوباره برگرد."
+
+    return (
+        "🤖 هنوز جواب این سوال رو یاد نگرفتم.\n"
+        "به مرور بهتر می‌شم."
+    )
